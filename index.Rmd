@@ -93,7 +93,9 @@ valid <- train_clean[-inTrain,]
 
 ### 1. Generalised Boosted Regression Model
 
-First model being trained is GBM with repeated cross validation resampling using 3 folds.
+As this is a classification problem we want to try GBM which gives good accuracy and low out-of-sample error rate.
+
+GBM is being trained with repeated cross validation resampling using 3 folds, instead of the default vaule of k=10, to save on computational time.  
 
 ```{r GBM Fit}
 fitControl_gbm <- trainControl(method = "repeatedcv", number=3, repeats = 1)
@@ -115,12 +117,12 @@ pred_gbm <- predict(mod_gbm,valid)
 accuracy_gbm <- confusionMatrix(valid$classe, pred_gbm)$overall[1]
 accuracy_gbm
 ```
-We have receive an Accuracy of `r (round(accuracy_gbm, digits = 4)*100)` for  Generalised Boosted Model
+We have receive an Accuracy of `r (round(accuracy_gbm, digits = 4)*100)` for  Generalised Boosted Model. Here the out-of-sample error rate is `r (1 - accuracy_gbm)`.
 
 
 ### 2. Random Forest
 
-Second model being used is Random Forest.
+Second model being used is Random Forest which is also know for having low out-of-sample error rate and preferred for classification type prediction.
 ```{r Random Forest Model Fit}
 # instruct train to use 3-fold CV to select optimal tuning parameters
 fitControl_rf <- trainControl(method="cv", number=3, verboseIter=F)
@@ -140,7 +142,7 @@ pred_rf <- predict(mod_rf,valid)
 accuracy_rf <- confusionMatrix(valid$classe, pred_rf)$overall[1]
 accuracy_rf
 ```
-We receive Accuracy of `r (round(accuracy_rf, digits = 4)*100)` for Random Forest, which is higher than that of GBM and thus we will use Random Forest for prediction on test set.
+We receive Accuracy of `r (round(accuracy_rf, digits = 4)*100)` and the out-of-sample error rate is `r (1 - accuracy_rf)`for Random Forest. As we have received prediction accuracy which is higher than that of GBM and lower out-of-sample error rate, thus we will use Random Forest for prediction on test set.
 
 ## Predicting on Testing Set
 
@@ -149,6 +151,8 @@ We will use random forests to predict the outcome of variable classe on the test
 ```{r Pridicting on testing set}
 (predict(mod_rf, test_final))
 ```
+
+We have received 100% accuracy in the resultant prediction.
 
 ## Conclusion
 
