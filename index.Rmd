@@ -1,30 +1,141 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Saurabh Kesarwani"
-date: "March 2, 2017"
+date: "March 5, 2017"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE}
+## This is the global parameter for this document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+This project is part of Johns Hopkins University’s Practical Machine Learning MOOC through Coursera.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Project Background
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.  
 
-```{r cars}
-summary(cars)
+## Goal
+
+The goal of this project is to predict the manner in which user groups did the exercise. This is the "classe" variable in the training set. We may use any of the other variables to predict with. We should create a report describing how we built the model, how we used cross validation, what we think the expected out of sample error is, and why we made the choices we did. We will also use our prediction model to predict 20 different test cases. 
+
+## Importing Data
+
+The training and test data set has been provided as csv files, which needs to be imported into R for further processing.
+
+```{r Data Import}
+urltraining <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+urltesting <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(urltraining), na.strings = c("NA", "#DIV/0!", ""))
+testing <- read.csv(url(urltesting), na.strings = c("NA", "#DIV/0!", ""))
+```
+We take care to convert all blank spaces and divide by zero errors to NA while importing so as to avoid computational issues later on.
+
+## Data Cleaning
+
+```{r Data Dimentions}
+dim(training); dim(testing)
+```
+Having a look at the imported data we see that there are 160 columns present. 
+
+### Removing NA's
+As most of the columns are having NA as observations, We will remove the columns which have NA in them. 
+
+```{r Removing NAs}
+training_na <- training[, colSums(is.na(training)) < 1]
+testing_na <- testing[, colSums(is.na(testing))< 1]
+dim(training_na); dim(testing_na)
 ```
 
-## Including Plots
+The number of columns have nowbeen redeuced to 60 from 160.
 
-You can also embed plots, for example:
+### Removing Near Zero Variables
+Next we will find and remove all the Near Zero Variables from our data as they are less meaningful predictors and can be removed from prediction algorithms.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r Removing Near Zero Variables}
+library(caret)
+nzv <- nearZeroVar(training_na, saveMetrics = TRUE)
+training_nzv <- training_na[,nzv$nzv==FALSE]
+
+nzv <- nearZeroVar(testing_na, saveMetrics = TRUE)
+testing_nzv <- testing_na[,nzv$nzv==FALSE]
+dim(training_nzv); dim(testing_nzv)
+```
+One nzv variable gets reduced from the dataset.
+
+### Removing first five columns
+We can see that the first five column only contains row numbers, username and timestamps thus can be removed as these do not have much prediction value.
+
+```{r Removing First five columns}
+train_clean <- training_nzv[,-(1:5)]
+test_clean <- testing_nzv[,-(1:5)]
+# Removing the dependent variable classe from test set
+test_final <- test_clean[,-54]
+dim(train_clean); dim(test_final)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Data Splitting
+
+Training data will be split in 60:40 ratio between Training:Validation sets.The validation set would be used to test few prediction models and find which one gives the best result. Best performing model would then be applied on the test data set.
+
+```{r Data Splitting}
+inTrain <- createDataPartition(train_clean$classe, p = 0.6, list = FALSE)
+train <- train_clean[inTrain,]
+valid <- train_clean[-inTrain,]
+```
+
+## Training Prediction Models
+
+### 1. Generalised Boosted Model
+
+First model is GBM which is being trained with repeated cross validation resampling using 3 folds with one repeat.
+
+```{r GBM Fit}
+fitControl_gbm <- trainControl(method = "repeatedcv", number=3, repeats = 1)
+mod_gbm <- train(classe ~ ., data=train, method= "gbm", trControl=fitControl_gbm, verbose = FALSE)
+mod_gbm
+```
+
+```{r Predict GBM outcome}
+#predict outcomes using validation set
+pred_gbm <- predict(mod_gbm,valid)
+accuracy_gbm <- confusionMatrix(valid$classe, pred_gbm)$overall[1]
+accuracy_gbm
+```
+We have receive an Accuracy of `r accuracy_gbm` for  Generalised Boosted Model
+
+
+### 2. Randon Forest
+
+Second model being used is Random Forest.
+```{r Randam Forest Model Fit}
+# instruct train to use 3-fold CV to select optimal tuning parameters
+fitControl_rf <- trainControl(method="cv", number=3, verboseIter=F)
+mod_rf <- train(classe ~ ., data=train, method="rf", trControl=fitControl_rf)
+mod_rf
+```
+
+```{r Predict rf outcome}
+#predict outcomes using validation set
+pred_rf <- predict(mod_rf,valid)
+accuracy_rf <- confusionMatrix(valid$classe, pred_rf)$overall[1]
+accuracy_rf
+```
+We receive Accuracy of `r accuracy_rf` for Random Forest, which is higher than that of GBM and thus we will use Random Forest for prediction on test set.
+
+## Predicting on Testing Set
+
+We will use random forests to predict the outcome of variable classe on the testing set.
+
+```{r Pridicting on testing set}
+(predict(mod_rf, test_final))
+```
+
+## Conclusion
+
+The prediction accuracy of Random Forest was found to be only around 1% higher than that of Generalised Boosted Model but the time taken to complete training was far much lower for GBM. Between these two models there is no hands down winner as both have given similar results and one needs to trade-off between Accuracy and Processing time to decide in between the two.
+
+
+
