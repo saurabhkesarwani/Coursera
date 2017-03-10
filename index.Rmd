@@ -10,15 +10,19 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This project is part of Johns Hopkins University’s Practical Machine Learning MOOC through Coursera.
+This project is part of Johns Hopkins University’s Practical Machine Learning MOOC on  Coursera.
 
 ## Project Background
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.  
 
+This project is an analysis of Human Activity Recognition exercises and the training of data models to predict the ‘classe’ outcome which indicates whether an individual corrrectly performed an exercise (value of ‘A’) or incorrectly performed it in one of four alternative ways (value of ‘B’, ‘C’, ‘D’, or ‘E’).
+
+
 ## Goal
 
 The goal of this project is to predict the manner in which user groups did the exercise. This is the "classe" variable in the training set. We may use any of the other variables to predict with. We should create a report describing how we built the model, how we used cross validation, what we think the expected out of sample error is, and why we made the choices we did. We will also use our prediction model to predict 20 different test cases. 
+
 
 ## Importing Data
 
@@ -53,7 +57,7 @@ dim(training_na); dim(testing_na)
 The number of columns have nowbeen redeuced to 60 from 160.
 
 
-#### 2.Removing Near Zero Variables
+#### 2. Removing Near Zero Variables
 Next we will find and remove all the Near Zero Variables from our data as they are less meaningful predictors and can be removed from prediction algorithms.
 
 ```{r Removing Near Zero Variables}
@@ -99,9 +103,13 @@ GBM is being trained with repeated cross validation resampling using 3 folds, in
 
 ```{r GBM Fit}
 fitControl_gbm <- trainControl(method = "repeatedcv", number=3, repeats = 1)
-mod_gbm <- train(classe ~ ., data=train, method= "gbm", trControl=fitControl_gbm, verbose = FALSE)
+time_gbm <- system.time(
+                         mod_gbm <- train(classe ~ ., data=train, method= "gbm", 
+                                       trControl=fitControl_gbm, verbose = FALSE)
+                       );
 mod_gbm
 ```
+The time GBM took for training was `r paste(time_gbm[1],"seconds")` 
 
 From the following plot we can see how the GBM model works to increase its prediction accuracy through several boosted iteration.
 
@@ -117,7 +125,7 @@ pred_gbm <- predict(mod_gbm,valid)
 accuracy_gbm <- confusionMatrix(valid$classe, pred_gbm)$overall[1]
 accuracy_gbm
 ```
-We have receive an Accuracy of `r (round(accuracy_gbm, digits = 4)*100)` for  Generalised Boosted Model. Here the out-of-sample error rate is `r (1 - accuracy_gbm)`.
+We have receive an Accuracy of `r accuracy_gbm` for Generalised Boosted Model. Here the out-of-sample error rate is `r (1 - accuracy_gbm)`.
 
 
 ### 2. Random Forest
@@ -125,10 +133,14 @@ We have receive an Accuracy of `r (round(accuracy_gbm, digits = 4)*100)` for  Ge
 Second model being used is Random Forest which is also know for having low out-of-sample error rate and preferred for classification type prediction.
 ```{r Random Forest Model Fit}
 # instruct train to use 3-fold CV to select optimal tuning parameters
+
 fitControl_rf <- trainControl(method="cv", number=3, verboseIter=F)
-mod_rf <- train(classe ~ ., data=train, method="rf", trControl=fitControl_rf)
+time_rf <- system.time(                    
+              mod_rf <- train(classe ~ ., data=train, method="rf", trControl=fitControl_rf)
+            );
 mod_rf
 ```
+The time RF model took for training was `r paste(time_rf[1],"seconds")`
 
 On plotting for RF we see that accuracy is determined very differenctly as compared with GBM.
 ```{r plotting RF Model Fit}
@@ -142,7 +154,7 @@ pred_rf <- predict(mod_rf,valid)
 accuracy_rf <- confusionMatrix(valid$classe, pred_rf)$overall[1]
 accuracy_rf
 ```
-We receive Accuracy of `r (round(accuracy_rf, digits = 4)*100)` and the out-of-sample error rate is `r (1 - accuracy_rf)`for Random Forest. As we have received prediction accuracy which is higher than that of GBM and lower out-of-sample error rate, thus we will use Random Forest for prediction on test set.
+We receive Accuracy of `r accuracy_rf ` and the out-of-sample error rate is `r (1 - accuracy_rf)` for Random Forest. As we have received prediction accuracy which is higher than that of GBM and lower out-of-sample error rate, thus we will use Random Forest for prediction on test set.
 
 ## Predicting on Testing Set
 
@@ -156,7 +168,7 @@ We have received 100% accuracy in the resultant prediction.
 
 ## Conclusion
 
-The prediction accuracy of Random Forest was found to be only around 1% higher than that of Generalised Boosted Model but the time taken to complete training was far much lower for GBM. Between these two models there is no hands down winner as both have given similar results and one needs to trade-off between Accuracy and Processing time to decide in between the two.
+The prediction accuracy of Random Forest was found to be only `r paste((round((accuracy_rf - accuracy_gbm), digits = 4)*100),"%", sep = "")` higher than that of Generalised Boosted Model but the time taken to complete training was far much lower for GBM. Between these two models there is no hands down winner as both have given similar results and one needs to trade-off between Accuracy and Processing time to decide in between the two.
 
 
 
